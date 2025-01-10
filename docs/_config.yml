@@ -1,0 +1,6 @@
+title: Prophet Documentation
+description: Documentation for Prophet Project
+baseurl: ""
+url: ""
+plugins:
+  - jekyll-feed

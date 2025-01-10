@@ -1,0 +1,58 @@
+
+services:
+  jupyterlab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: facebook/prophet
+    container_name: jupyterlab_service
+    ports:
+      - "8888:8888"  # Expose JupyterLab on port 8888
+    volumes:
+      - ./notebooks:/notebooks  # Mount notebooks directory
+      - ./R:/R  # Mount R directory
+    working_dir: /notebooks
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"  # Enable JupyterLab
+    command: >
+      bash -c "/usr/local/bin/start-notebook.sh --NotebookApp.token=''"
+    stdin_open: true
+    tty: true
+    depends_on:
+      - database  # Ensure the database is running before JupyterLab starts
+
+  jekyll:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: facebook/prophet
+    container_name: jekyll_service
+    ports:
+      - "4000:4000"  # Expose Jekyll on port 4000
+    volumes:
+      - ./docs:/docs  # Mount docs directory
+    working_dir: /docs
+    command: >
+      bash -c "bundle exec jekyll serve --host 0.0.0.0"
+    stdin_open: true
+    tty: true
+
+  database:
+    image: postgres:latest
+    container_name: postgres_service
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: prophet_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:

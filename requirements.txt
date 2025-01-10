@@ -1,0 +1,7 @@
+prophet>=1.0  # Prophet for Python
+jupyterlab>=3.0  # JupyterLab interface
+pandas>=1.3.0  # For handling data
+numpy>=1.21.0  # For numerical computations
+matplotlib>=3.4.0  # For plotting
+seaborn>=0.11.0  # For advanced visualizations (optional)
+scipy>=1.7.0  # For scientific computations
