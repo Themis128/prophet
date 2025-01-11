@@ -1,50 +1,28 @@
-# Use a lightweight Python base image
+# Use Python 3.9 slim as the base image
 FROM python:3.9-slim
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
+# Install system dependencies required for Prophet and Stan
+RUN apt-get update && apt-get install -y \
     build-essential \
-    libpython3-dev \
-    libpq-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    libatlas-base-dev \
+    python3-dev \
+    && apt-get clean
 
-# Copy requirements file and install dependencies
-COPY requirements.txt .
+# Copy the requirements file and install Python dependencies
+COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY ./app /app
-COPY ./data /app/data
+# Copy the entire project into the container
+COPY . /app/
 
-# Add and set up start-notebook.sh for JupyterLab
-COPY start-notebook.sh /usr/local/bin/start-notebook.sh
-RUN chmod +x /usr/local/bin/start-notebook.sh
+# Ensure the data directory exists
+RUN mkdir -p /app/data
 
-# Environment variables for Flask, Gunicorn, and Prophet
-ENV FLASK_APP=app.py
-ENV FLASK_ENV=production
+# Ensure the Stan model directory exists and copy files
+COPY ./python/stan /app/python/stan
 
-# Expose ports for Flask and JupyterLab
-EXPOSE 5000 8888
-
-# Default command for determining service behavior
-# Use an environment variable to switch between services
-ARG SERVICE=flask
-
-# Default command
-CMD ["/bin/bash", "-c", "\
-    if [ \"$SERVICE\" = \"flask\" ]; then \
-        gunicorn -b 0.0.0.0:5000 app:app; \
-    elif [ \"$SERVICE\" = \"jupyterlab\" ]; then \
-        /usr/local/bin/start-notebook.sh; \
-    elif [ \"$SERVICE\" = \"prophet\" ]; then \
-        python -m prophet.main; \
-    else \
-        echo \"Unknown SERVICE: $SERVICE\" && exit 1; \
-    fi"]
+# Set the entry point for the container
+ENTRYPOINT ["python", "-m", "prophet.main"]

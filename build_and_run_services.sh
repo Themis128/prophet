@@ -116,5 +116,29 @@ else
   docker logs postgres_service
 fi
 
+# Step 11: Verify Prophet service
+echo "Verifying Prophet service logs..."
+if docker logs prophet_service; then
+  echo "Prophet service is running and logs are available."
+else
+  echo "Warning: Unable to fetch logs for Prophet service. Check service health."
+fi
+
+# Step 12: Verify Flask service
+echo "Verifying Flask service logs..."
+if docker logs flask_service; then
+  echo "Flask service is running and logs are available."
+else
+  echo "Warning: Unable to fetch logs for Flask service. Check service health."
+fi
+
+# Step 13: Verify JupyterLab service
+echo "Verifying JupyterLab service logs..."
+if docker logs jupyterlab_service; then
+  echo "JupyterLab service is running and logs are available."
+else
+  echo "Warning: Unable to fetch logs for JupyterLab service. Check service health."
+fi
+
 # Final Message
 echo "All services are up and running!"

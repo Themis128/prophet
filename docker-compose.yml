@@ -16,7 +16,12 @@ services:
     command: ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]  # Run Flask with Gunicorn
     depends_on:
       - postgres  # Ensure PostgreSQL is running before Flask starts
-    restart: unless-stopped  # Restart if the service fails
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   jupyterlab:
     build:
@@ -32,10 +37,15 @@ services:
     working_dir: /notebooks
     environment:
       JUPYTER_ENABLE_LAB: "yes"  # Enable JupyterLab
-    command: ["/usr/local/bin/start-notebook.sh"]  # Run the JupyterLab script
+    command: ["/usr/local/bin//usr/local/bin/start-notebook.sh"]  # Run the JupyterLab script
     depends_on:
-      - postgres  # Ensure PostgreSQL is running before JupyterLab starts
-    restart: unless-stopped  # Restart if the service fails
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8888 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   postgres:
     image: postgres:latest
@@ -45,9 +55,9 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: prophet_db
     ports:
-      - "5432:5432"  # Expose PostgreSQL on port 5432
+      - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data  # Persist database data
+      - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user"]
       interval: 10s
@@ -61,13 +71,20 @@ services:
       dockerfile: Dockerfile
     container_name: prophet_service
     volumes:
-      - /home/tbaltzakis/prophet-main/prophet-main:/app  # Mount the project directory
-      - ./data:/app/data  # Shared data directory
-    working_dir: /app
-    command: ["python", "-m", "prophet.main"]  # Adjust the command to match your application entry point
+      - ./python:/app/python  # Mount the Python directory
+      - ./data:/app/data      # Shared data directory
+    working_dir: /app/python
+    environment:
+      PYTHONUNBUFFERED: "1"  # Ensure logs are streamed to console
+    command: ["python", "-m", "prophet.main"]  # Run the Prophet service
     depends_on:
-      - postgres  # Ensure PostgreSQL is running before Prophet starts
-    restart: unless-stopped  # Restart if the service fails
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -m prophet.main || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   db_data:

@@ -6,6 +6,8 @@ STATIC_DIR="$WORK_DIR/docs/static"
 DOCS_DIR="$WORK_DIR/docs/docs/static"
 CONFIG_FILE="$WORK_DIR/docs/_config.yml"
 DOCKER_COMPOSE="$WORK_DIR/docker-compose.yml"
+STAN_DIR="$WORK_DIR/python/stan"
+STAN_FILE="$STAN_DIR/prophet.stan"
 
 echo "Ensuring the correct location of prophet_paper_20170113.pdf..."
 
@@ -33,6 +35,15 @@ else
   echo "No incorrect references found in $CONFIG_FILE."
 fi
 
+# Verify the stan directory and file
+echo "Checking for Stan file..."
+if [ ! -f "$STAN_FILE" ]; then
+  echo "Error: Stan file 'prophet.stan' not found in $STAN_DIR."
+  exit 1
+else
+  echo "Stan file located: $STAN_FILE"
+fi
+
 # Update docker-compose.yml for start-notebook.sh
 echo "Ensuring start-notebook.sh is properly referenced in $DOCKER_COMPOSE..."
 if grep -q "start-notebook.sh" "$DOCKER_COMPOSE"; then
@@ -43,12 +54,12 @@ fi
 
 # Rebuild and restart Docker containers
 echo "Rebuilding and restarting Docker containers..."
-cd "$WORK_DIR"
+cd "$WORK_DIR" || { echo "Error: Unable to navigate to $WORK_DIR. Exiting."; exit 1; }
 docker compose down
 docker compose up -d --build
 
-# Check container logs for issues
+# Verify the prophet_service container logs
 echo "Checking logs for the prophet_service container..."
 docker logs prophet_service
 
-echo "Script completed."
+echo "Script completed successfully."
