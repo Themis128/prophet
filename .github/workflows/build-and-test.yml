@@ -1,4 +1,4 @@
-name: Build, Test, and Create GitHub Project
+name: Build, Test, and Update GitHub Project
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   docker-compose-test:
-    name: Test Docker Compose Services and Create GitHub Project
+    name: Test Docker Compose Services and Update GitHub Project
     runs-on: ubuntu-latest
 
     steps:
@@ -48,8 +48,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gh
 
+      - name: Authenticate with GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "${{ secrets.GH_TOKEN }}" | gh auth login --with-token
+
       - name: Create GitHub Project
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          gh project create "My Project" --owner ${{ github.repository_owner }} --body "This is a project created by GitHub Actions."
+          gh project create --title "Prophet Time Series: v0.0.1" --owner Themis128 --description "This project is for managing the Prophet Time Series application for version v0.0.1."
+
+      - name: Add Fields to GitHub Project
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          gh project field add --owner Themis128 --project "Prophet Time Series: v0.0.1" --name "Status" --type single_select --options "To Do, In Progress, Done, Development"
+          gh project field add --owner Themis128 --project "Prophet Time Series: v0.0.1" --name "Priority" --type single_select --options "Low, Medium, High, Major"
+          gh project field add --owner Themis128 --project "Prophet Time Series: v0.0.1" --name "Deadline" --type date
+
+      - name: Add Items to GitHub Project
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          gh project item add --owner Themis128 --project "Prophet Time Series: v0.0.1" --title "Set up Docker environment" --field "Status: Development" --field "Priority: Major" --field "Deadline: Waiting for"
+          gh project item add --owner Themis128 --project "Prophet Time Series: v0.0.1" --title "Implement Prophet model" --field "Status: Development" --field "Priority: Major" --field "Deadline: Waiting for"
+          gh project item add --owner Themis128 --project "Prophet Time Series: v0.0.1" --title "Create test cases for Flask" --field "Status: Development" --field "Priority: Major" --field "Deadline: Waiting for"
