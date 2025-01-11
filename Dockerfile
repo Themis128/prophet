@@ -24,8 +24,8 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 # Install cmdstan binaries for cmdstanpy
 RUN python -c "from cmdstanpy import install_cmdstan; install_cmdstan(cores=2)"
 
-# Copy application code
-COPY . /app
+# Copy application files
+COPY ./app /app
 
 # Add a health check to ensure the container is ready
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
@@ -39,4 +39,4 @@ ENV PYTHONPATH="/app"
 EXPOSE 5001
 
 # Default command to run the app
-CMD ["python", "app/app.py"]
+CMD ["python", "app.py"]

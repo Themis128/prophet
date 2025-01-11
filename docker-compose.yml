@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  flask:
+  flask_service:
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -10,11 +10,10 @@ services:
       - "5001:5001"
     volumes:
       - ./app:/app
-      - ./data:/app/data
     environment:
       FLASK_ENV: production
     depends_on:
-      - postgres
+      - postgres_service
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
@@ -22,7 +21,45 @@ services:
       timeout: 5s
       retries: 3
 
-  jupyterlab:
+  prophet_service:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: prophet_service
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./app:/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      - postgres_service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres_service:
+    image: postgres:latest
+    container_name: postgres_service
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: prophet_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  jupyterlab_service:
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -38,53 +75,10 @@ services:
       JUPYTER_ENABLE_LAB: "yes"
     command: ["jupyter", "lab", "--ip=0.0.0.0", "--allow-root"]
     depends_on:
-      - postgres
+      - postgres_service
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  postgres:
-    image: postgres:latest
-    container_name: postgres_service
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: prophet_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  prophet:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-    container_name: prophet_service
-    ports:
-      - "5002:5002"
-    volumes:
-      - ./python:/app/python
-      - ./data:/app/data
-      - ./python/stan:/app/stan
-    working_dir: /app
-    environment:
-      PYTHONPATH: "/app/python"
-      PYTHONUNBUFFERED: "1"
-    command: ["python", "app.py"]
-    depends_on:
-      - postgres
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5002/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3

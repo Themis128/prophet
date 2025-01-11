@@ -61,18 +61,3 @@ jobs:
       - name: Tear down services
         if: always()
         run: docker-compose down
-
-      - name: Create GitHub Project
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
-        run: |
-          gh project create \
-            --title "Prophet Time Series: v0.0.1" \
-            --owner Themis128
-
-      - name: Add Description to GitHub Project
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
-        run: |
-          PROJECT_ID=$(gh project list --owner Themis128 --format json | jq -r '.[] | select(.name == "Prophet Time Series: v0.0.1") | .id')
-          gh project edit $PROJECT_ID --body "This project is for managing the Prophet Time Series application for version v0.0.1."
