@@ -4,21 +4,20 @@ services:
   flask:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./Dockerfile
     container_name: flask_service
     ports:
-      - "5000:5000"  # Expose Flask on port 5000
+      - "5001:5001"
     volumes:
-      - ./app:/app  # Mount the Flask app directory
-      - ./data:/app/data  # Shared data directory
+      - ./app:/app
+      - ./data:/app/data
     environment:
       FLASK_ENV: production
-    command: ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]  # Run Flask with Gunicorn
     depends_on:
-      - postgres  # Ensure PostgreSQL is running before Flask starts
+      - postgres
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000 || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -26,23 +25,23 @@ services:
   jupyterlab:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./Dockerfile
     container_name: jupyterlab_service
     ports:
-      - "8888:8888"  # Expose JupyterLab on port 8888
+      - "8888:8888"
     volumes:
-      - ./notebooks:/notebooks  # Mount notebooks directory
-      - ./R:/R  # Mount R directory
-      - ./data:/app/data  # Shared data directory
+      - ./notebooks:/notebooks
+      - ./R:/R
+      - ./data:/app/data
     working_dir: /notebooks
     environment:
-      JUPYTER_ENABLE_LAB: "yes"  # Enable JupyterLab
-    command: ["/usr/local/bin//usr/local/bin/start-notebook.sh"]  # Run the JupyterLab script
+      JUPYTER_ENABLE_LAB: "yes"
+    command: ["jupyter", "lab", "--ip=0.0.0.0", "--allow-root"]
     depends_on:
       - postgres
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8888 || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8888"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -68,20 +67,24 @@ services:
   prophet:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./Dockerfile
     container_name: prophet_service
+    ports:
+      - "5002:5002"
     volumes:
-      - ./python:/app/python  # Mount the Python directory
-      - ./data:/app/data      # Shared data directory
-    working_dir: /app/python
+      - ./python:/app/python
+      - ./data:/app/data
+      - ./python/stan:/app/stan
+    working_dir: /app
     environment:
-      PYTHONUNBUFFERED: "1"  # Ensure logs are streamed to console
-    command: ["python", "-m", "prophet.main"]  # Run the Prophet service
+      PYTHONPATH: "/app/python"
+      PYTHONUNBUFFERED: "1"
+    command: ["python", "app.py"]
     depends_on:
       - postgres
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "python -m prophet.main || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5002/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3

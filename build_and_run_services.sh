@@ -1,8 +1,10 @@
 #!/bin/bash
 
-# Set the project root and version tag
+# Constants
 PROJECT_ROOT="/home/tbaltzakis/prophet-main/prophet-main"
 VERSION_TAG="v0.0.1"
+SERVICES=("postgres_service" "flask_service" "prophet_service" "jupyterlab_service")
+IMAGES=("baltzakist/flask_service:$VERSION_TAG" "baltzakist/prophet_service:$VERSION_TAG" "baltzakist/jupyterlab_service:$VERSION_TAG")
 
 echo "Starting the build and setup process with docker-compose..."
 
@@ -14,41 +16,29 @@ else
   exit 1
 fi
 
-# Step 2: Stop and remove all existing containers managed by docker-compose
-echo "Stopping and removing existing containers..."
-if docker-compose down --volumes --remove-orphans; then
-  echo "Containers stopped and removed successfully."
-else
-  echo "Warning: Some containers may not have been stopped or removed. Continuing."
-fi
+# Step 2: Stop and remove existing containers and volumes
+echo "Stopping and removing existing containers and volumes..."
+docker-compose down --volumes --remove-orphans || echo "Warning: Some containers may not have been removed. Continuing."
 
-# Step 3: Remove any stray containers with conflicting names
+# Step 3: Remove conflicting containers
 echo "Removing any conflicting containers..."
-for container in postgres_service flask_service prophet_service jupyterlab_service; do
+for container in "${SERVICES[@]}"; do
   if docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
-    if docker rm -f "$container"; then
-      echo "Removed container: $container"
-    else
-      echo "Warning: Failed to remove container: $container"
-    fi
+    docker rm -f "$container" && echo "Removed container: $container" || echo "Warning: Failed to remove container: $container"
   fi
 done
 
 # Step 4: Remove old images
 echo "Removing old images..."
-for image in baltzakist/flask_service:$VERSION_TAG baltzakist/prophet_service:$VERSION_TAG baltzakist/jupyterlab_service:$VERSION_TAG; do
+for image in "${IMAGES[@]}"; do
   if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${image}$"; then
-    if docker rmi -f "$image"; then
-      echo "Removed image: $image"
-    else
-      echo "Warning: Failed to remove image: $image"
-    fi
+    docker rmi -f "$image" && echo "Removed image: $image" || echo "Warning: Failed to remove image: $image"
   fi
 done
 
 # Step 5: Build new images
-echo "Building new images..."
-if docker-compose build; then
+echo "Building new Docker images..."
+if docker-compose build --no-cache; then
   echo "Docker images built successfully."
 else
   echo "Error: Failed to build Docker images. Exiting."
@@ -59,12 +49,10 @@ fi
 echo "Tagging new images..."
 for service in flask_service prophet_service jupyterlab_service; do
   if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${service}:latest$"; then
-    if docker tag "${service}:latest" "baltzakist/${service}:${VERSION_TAG}"; then
-      echo "Tagged image: ${service}"
-    else
+    docker tag "${service}:latest" "baltzakist/${service}:${VERSION_TAG}" && echo "Tagged image: ${service}" || {
       echo "Error: Failed to tag image for ${service}. Exiting."
       exit 1
-    fi
+    }
   else
     echo "Error: Could not find image for ${service}. Exiting."
     exit 1
@@ -80,65 +68,61 @@ else
   exit 1
 fi
 
-# Step 8: Confirm running containers
+# Step 8: Verify running containers
 echo "Checking running containers..."
-if docker ps; then
-  echo "All services are running:"
-  docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-else
-  echo "Warning: Unable to verify running containers."
-fi
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || echo "Warning: Unable to verify running containers."
 
-# Step 9: Wait for PostgreSQL to be ready
+# Step 9: Wait for PostgreSQL readiness
 echo "Verifying PostgreSQL database initialization..."
-for i in {1..10}; do
+for attempt in {1..10}; do
   if docker exec postgres_service pg_isready -U user; then
     echo "PostgreSQL is ready and accepting connections."
     break
   else
-    echo "Waiting for PostgreSQL to be ready... (attempt $i)"
+    echo "Waiting for PostgreSQL to be ready... (attempt $attempt)"
     sleep 5
   fi
-
-  if [ "$i" -eq 10 ]; then
+  if [ "$attempt" -eq 10 ]; then
     echo "Error: PostgreSQL is not ready after multiple attempts. Check PostgreSQL logs."
     docker logs postgres_service
     exit 1
   fi
 done
 
-# Step 10: Test database connectivity
+# Step 10: Test database connectivity and create the database if it does not exist
 echo "Testing database connectivity..."
+if docker exec postgres_service psql -U user -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'prophet_db';" | grep -q 1; then
+  echo "Database 'prophet_db' already exists."
+else
+  echo "Database 'prophet_db' does not exist. Creating it..."
+  if docker exec postgres_service psql -U user -d postgres -c "CREATE DATABASE prophet_db;"; then
+    echo "Database 'prophet_db' created successfully."
+  else
+    echo "Error: Failed to create database 'prophet_db'. Check PostgreSQL logs."
+    docker logs postgres_service
+    exit 1
+  fi
+fi
+
 if docker exec postgres_service psql -U user -d prophet_db -c "\dt"; then
   echo "Database initialized and accessible."
 else
-  echo "Warning: Database initialization verification failed. Check PostgreSQL logs."
+  echo "Error: Database connectivity verification failed. Check logs."
   docker logs postgres_service
+  exit 1
 fi
 
-# Step 11: Verify Prophet service
-echo "Verifying Prophet service logs..."
-if docker logs prophet_service; then
-  echo "Prophet service is running and logs are available."
-else
-  echo "Warning: Unable to fetch logs for Prophet service. Check service health."
-fi
-
-# Step 12: Verify Flask service
-echo "Verifying Flask service logs..."
-if docker logs flask_service; then
-  echo "Flask service is running and logs are available."
-else
-  echo "Warning: Unable to fetch logs for Flask service. Check service health."
-fi
-
-# Step 13: Verify JupyterLab service
-echo "Verifying JupyterLab service logs..."
-if docker logs jupyterlab_service; then
-  echo "JupyterLab service is running and logs are available."
-else
-  echo "Warning: Unable to fetch logs for JupyterLab service. Check service health."
-fi
+# Step 11: Verify health of services
+echo "Verifying the health of services..."
+for service in "${SERVICES[@]}"; do
+  echo "Checking $service..."
+  if docker ps --filter "name=$service" --filter "health=healthy" --format '{{.Names}}' | grep -q "^${service}$"; then
+    echo "$service is healthy."
+  else
+    echo "Warning: $service is not healthy or health check not configured. Checking logs..."
+    docker logs "$service" || echo "Warning: Unable to fetch logs for $service."
+  fi
+done
 
 # Final Message
-echo "All services are up and running!"
+echo "All services are up and running! Visit your application or check logs for further details."

@@ -1,38 +1,42 @@
-# Use Python 3.9 slim as the base image
+# Use Python 3.9 slim image as the base
 FROM python:3.9-slim
 
 # Set the working directory
 WORKDIR /app
 
-# Install system dependencies required for Prophet and Stan
-RUN apt-get update && apt-get install -y \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libatlas-base-dev \
-    python3-dev \
-    cmake \
+    gcc \
     g++ \
-    && apt-get clean
-
-# Copy the requirements file into the container
-COPY requirements.txt /app/
+    make \
+    libffi-dev \
+    libssl-dev \
+    libpython3-dev \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt /app/
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Install Prophet's required Stan backend (pystan or cmdstanpy)
-RUN pip install --no-cache-dir pystan==2.19.1.1 prophet
+# Install cmdstan binaries for cmdstanpy
+RUN python -c "from cmdstanpy import install_cmdstan; install_cmdstan(cores=2)"
 
-# Install optional dependencies like Plotly (if needed for interactive plots)
-RUN pip install --no-cache-dir plotly
+# Copy application code
+COPY . /app
 
-# Ensure the data directory exists
-RUN mkdir -p /app/data
+# Add a health check to ensure the container is ready
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:5001/health || exit 1
 
-# Ensure the Stan model directory exists and copy files
-COPY ./python/stan /app/python/stan
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH="/app"
 
-# Copy the entire project into the container
-COPY . /app/
+# Expose the service port
+EXPOSE 5001
 
-# Set the entry point for the container
-ENTRYPOINT ["python", "-m", "prophet.main"]
+# Default command to run the app
+CMD ["python", "app/app.py"]
