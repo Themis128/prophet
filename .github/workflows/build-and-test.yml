@@ -48,14 +48,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gh
 
-      - name: Authenticate with GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.MY_PERSONAL_TOKEN }}
-        run: |
-          gh auth login --with-token <<< "${GH_TOKEN}"
-
       - name: Create GitHub Project
         env:
-          GH_TOKEN: ${{ secrets.MY_PERSONAL_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           gh project create "My Project" --owner ${{ github.repository_owner }} --body "This is a project created by GitHub Actions."
