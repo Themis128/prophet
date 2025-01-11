@@ -20,26 +20,38 @@ jobs:
       - name: Set up Docker
         uses: docker/setup-buildx-action@v2
 
-      - name: Install Docker Compose
+      - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y docker-compose
+          sudo apt-get install -y docker-compose jq
 
       - name: Build and start Docker Compose services
         run: |
           docker-compose up --build -d
           docker ps
 
-      - name: Wait for Flask service
+      - name: Test Flask service
         run: |
           for i in {1..10}; do
             curl -f http://localhost:5000 && break || sleep 5
           done
 
-      - name: Wait for JupyterLab
+      - name: Test JupyterLab service
         run: |
           for i in {1..10}; do
             curl -f http://localhost:8888 && break || sleep 5
+          done
+
+      - name: Test PostgreSQL service
+        run: |
+          for i in {1..10}; do
+            docker exec postgres_service pg_isready -U user && break || sleep 5
+          done
+
+      - name: Test Prophet service
+        run: |
+          for i in {1..10}; do
+            docker exec prophet_service python -m prophet.main && break || sleep 5
           done
 
       - name: Display Docker Compose logs
@@ -50,70 +62,17 @@ jobs:
         if: always()
         run: docker-compose down
 
-      - name: Install GitHub CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gh
-
-      - name: Authenticate with GitHub CLI
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "$GH_TOKEN" | gh auth login --with-token
-
       - name: Create GitHub Project
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           gh project create \
             --title "Prophet Time Series: v0.0.1" \
-            --owner Themis128 \
-            --description "This project is for managing the Prophet Time Series application for version v0.0.1."
+            --owner Themis128
 
-      - name: Add Fields to GitHub Project
+      - name: Add Description to GitHub Project
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          gh project field add \
-            --owner Themis128 \
-            --project "Prophet Time Series: v0.0.1" \
-            --name "Status" \
-            --type single_select \
-            --options "To Do, In Progress, Done, Development"
-          gh project field add \
-            --owner Themis128 \
-            --project "Prophet Time Series: v0.0.1" \
-            --name "Priority" \
-            --type single_select \
-            --options "Low, Medium, High, Major"
-          gh project field add \
-            --owner Themis128 \
-            --project "Prophet Time Series: v0.0.1" \
-            --name "Deadline" \
-            --type date
-
-      - name: Add Items to GitHub Project
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          gh project item add \
-            --owner Themis128 \
-            --project "Prophet Time Series: v0.0.1" \
-            --title "Set up Docker environment" \
-            --field "Status: Development" \
-            --field "Priority: Major" \
-            --field "Deadline: Waiting for"
-          gh project item add \
-            --owner Themis128 \
-            --project "Prophet Time Series: v0.0.1" \
-            --title "Implement Prophet model" \
-            --field "Status: Development" \
-            --field "Priority: Major" \
-            --field "Deadline: Waiting for"
-          gh project item add \
-            --owner Themis128 \
-            --project "Prophet Time Series: v0.0.1" \
-            --title "Create test cases for Flask" \
-            --field "Status: Development" \
-            --field "Priority: Major" \
-            --field "Deadline: Waiting for"
+          PROJECT_ID=$(gh project list --owner Themis128 --format json | jq -r '.[] | select(.title=="Prophet Time Series: v0.0.1") | .id')
+          gh project edit $PROJECT_ID --body "This project is for managing the Prophet Time Series application for version v0.0.1."

@@ -1,5 +1,23 @@
+# Core dependencies
+pandas>=1.3.0
+numpy>=1.21.0
+
+# Prophet and Stan backend
 prophet
-cmdstanpy
-numpy
-pandas
-matplotlib
+pystan==2.19.1.1
+
+# Optional: For interactive plotting with Prophet
+plotly>=5.0.0
+
+# Flask: If Flask is used as a web framework in the project
+flask>=2.0.0
+
+# JupyterLab: If JupyterLab is used in the project
+jupyterlab>=3.0.0
+
+# Database connectivity (PostgreSQL, optional)
+psycopg2-binary>=2.9.0
+
+# General utility libraries (optional)
+gunicorn>=20.0.0  # For production WSGI server
+
