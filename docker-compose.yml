@@ -12,22 +12,10 @@ services:
       - ./app:/app  # Mount the Flask app directory
       - ./data:/app/data  # Shared data directory
     environment:
-      FLASK_ENV: production  # Set production mode
+      FLASK_ENV: production
+    command: ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]  # Run Flask with Gunicorn
     depends_on:
-      - prophet
-      - database  # Ensure the database is running before Flask starts
-    restart: unless-stopped  # Restart if the service fails
-
-  prophet:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: prophet_service
-    volumes:
-      - ./data:/app/data  # Shared data directory for input/output
-    command: python -m prophet.main  # Replace with the actual entry point for your Prophet service
-    depends_on:
-      - database  # Ensure the database is running before Prophet starts
+      - postgres  # Ensure PostgreSQL is running before Flask starts
     restart: unless-stopped  # Restart if the service fails
 
   jupyterlab:
@@ -40,15 +28,16 @@ services:
     volumes:
       - ./notebooks:/notebooks  # Mount notebooks directory
       - ./R:/R  # Mount R directory
-      - ./data:/data  # Shared data directory for access in JupyterLab
+      - ./data:/app/data  # Shared data directory
     working_dir: /notebooks
     environment:
       JUPYTER_ENABLE_LAB: "yes"  # Enable JupyterLab
-    command: >
-      bash -c "/usr/local/bin/start-notebook.sh --NotebookApp.token=''"
+    command: ["/usr/local/bin/start-notebook.sh"]  # Run the JupyterLab script
+    depends_on:
+      - postgres  # Ensure PostgreSQL is running before JupyterLab starts
     restart: unless-stopped  # Restart if the service fails
 
-  database:
+  postgres:
     image: postgres:latest
     container_name: postgres_service
     environment:
@@ -64,6 +53,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  prophet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: prophet_service
+    volumes:
+      - /home/tbaltzakis/prophet-main/prophet-main:/app  # Mount the project directory
+      - ./data:/app/data  # Shared data directory
+    working_dir: /app
+    command: ["python", "-m", "prophet.main"]  # Adjust the command to match your application entry point
+    depends_on:
+      - postgres  # Ensure PostgreSQL is running before Prophet starts
     restart: unless-stopped  # Restart if the service fails
 
 volumes:

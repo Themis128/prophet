@@ -22,12 +22,29 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./app /app
 COPY ./data /app/data
 
-# Environment variables for Gunicorn
+# Add and set up start-notebook.sh for JupyterLab
+COPY start-notebook.sh /usr/local/bin/start-notebook.sh
+RUN chmod +x /usr/local/bin/start-notebook.sh
+
+# Environment variables for Flask, Gunicorn, and Prophet
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 
-# Expose Flask port
-EXPOSE 5000
+# Expose ports for Flask and JupyterLab
+EXPOSE 5000 8888
 
-# Command to start Gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
+# Default command for determining service behavior
+# Use an environment variable to switch between services
+ARG SERVICE=flask
+
+# Default command
+CMD ["/bin/bash", "-c", "\
+    if [ \"$SERVICE\" = \"flask\" ]; then \
+        gunicorn -b 0.0.0.0:5000 app:app; \
+    elif [ \"$SERVICE\" = \"jupyterlab\" ]; then \
+        /usr/local/bin/start-notebook.sh; \
+    elif [ \"$SERVICE\" = \"prophet\" ]; then \
+        python -m prophet.main; \
+    else \
+        echo \"Unknown SERVICE: $SERVICE\" && exit 1; \
+    fi"]
