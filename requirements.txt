@@ -1,7 +1,19 @@
-prophet>=1.0  # Prophet for Python
-jupyterlab>=3.0  # JupyterLab interface
-pandas>=1.3.0  # For handling data
-numpy>=1.21.0  # For numerical computations
-matplotlib>=3.4.0  # For plotting
-seaborn>=0.11.0  # For advanced visualizations (optional)
-scipy>=1.7.0  # For scientific computations
+# Flask and Gunicorn for web app
+flask>=2.0
+gunicorn>=20.0
+
+# Prophet for forecasting
+prophet>=1.0
+
+# Common data science libraries
+pandas>=1.3.0
+numpy>=1.21.0
+matplotlib>=3.4.0
+seaborn>=0.11.0
+scipy>=1.7.0
+
+# JupyterLab for interactive notebooks
+jupyterlab>=3.0
+
+# Optional: For interactive visualizations
+plotly>=5.0

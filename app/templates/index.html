@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prophet Time-Series Forecasting</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="file"],
+        input[type="number"] {
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prophet Time-Series Forecasting</h1>
+    <form method="POST" enctype="multipart/form-data">
+        <label for="file">Upload CSV File:</label>
+        <input type="file" name="file" accept=".csv" required>
+        
+        <label for="forecast_days">Number of Days to Forecast:</label>
+        <input type="number" name="forecast_days" value="30" min="1" required>
+        
+        <button type="submit">Generate Forecast</button>
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if forecast %}
+        <h2>Forecast Results</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Forecast</th>
+                    <th>Lower Bound</th>
+                    <th>Upper Bound</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in forecast %}
+                <tr>
+                    <td>{{ row.ds }}</td>
+                    <td>{{ row.yhat }}</td>
+                    <td>{{ row.yhat_lower }}</td>
+                    <td>{{ row.yhat_upper }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</body>
+</html>
