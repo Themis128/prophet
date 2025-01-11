@@ -1,4 +1,4 @@
-name: Build and Test with Docker Compose
+name: Build, Test, and Create GitHub Project
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   docker-compose-test:
-    name: Test Docker Compose Services
+    name: Test Docker Compose Services and Create GitHub Project
     runs-on: ubuntu-latest
 
     steps:
@@ -42,3 +42,20 @@ jobs:
       - name: Tear down services
         if: always()
         run: docker-compose down
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Authenticate with GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.MY_PERSONAL_TOKEN }}
+        run: |
+          gh auth login --with-token <<< "${GH_TOKEN}"
+
+      - name: Create GitHub Project
+        env:
+          GH_TOKEN: ${{ secrets.MY_PERSONAL_TOKEN }}
+        run: |
+          gh project create "My Project" --owner ${{ github.repository_owner }} --body "This is a project created by GitHub Actions."
